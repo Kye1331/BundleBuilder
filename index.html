@@ -428,6 +428,53 @@
         transition: width 0.3s ease;
       }
 
+      /* --- FILE UPLOAD --- */
+      .upload-zone {
+        border: 1px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 1.4rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        position: relative;
+        background: var(--surface2);
+      }
+
+      .upload-zone:hover,
+      .upload-zone.drag-active {
+        border-color: var(--accent);
+        background: #1a1710;
+      }
+
+      .upload-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+
+      .upload-zone-label {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        line-height: 1.9;
+        pointer-events: none;
+      }
+
+      .upload-zone-label strong {
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      .upload-zone-types {
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+        pointer-events: none;
+      }
+
       /* --- DRAG OVER HIGHLIGHT --- */
       .queue-item.drag-over {
         border-color: var(--accent);
@@ -602,8 +649,9 @@
           <div style="display: flex; flex-direction: column; gap: 0.6rem">
             <div class="field">
               <label for="gdoc-url"
-                >Public Google Docs URL (share setting to anyone with the link)
-              </label>
+                >Google Docs URL (set share settings to: "anyone with link can
+                view")</label
+              >
               <input
                 type="url"
                 id="gdoc-url"
@@ -629,6 +677,54 @@
               style="align-self: flex-start; padding: 0.6rem 1.2rem"
             >
               Add Document
+            </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- File Upload -->
+        <div>
+          <div class="section-label">Upload File</div>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem">
+            <div class="upload-zone" id="upload-zone">
+              <input
+                type="file"
+                id="file-input"
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                multiple
+              />
+              <div class="upload-zone-label">
+                <strong>Click to browse</strong> or drag and drop<br />
+                files here to add them
+              </div>
+              <div class="upload-zone-types">
+                PDF &middot; JPG &middot; PNG &middot; GIF &middot; WEBP
+              </div>
+            </div>
+            <div class="field" id="upload-name-field" style="display: none">
+              <label for="upload-name"
+                >Assignment name
+                <span style="color: var(--text-dim)"
+                  >(for images — required)</span
+                ></label
+              >
+              <input
+                type="text"
+                id="upload-name"
+                placeholder="e.g. Lab Report Photos"
+              />
+            </div>
+            <button
+              class="btn-primary"
+              id="btn-add-upload"
+              style="
+                align-self: flex-start;
+                padding: 0.6rem 1.2rem;
+                display: none;
+              "
+            >
+              Add to Bundle
             </button>
           </div>
         </div>
@@ -778,6 +874,118 @@
           showNotif(`Captured: ${name}`);
         });
 
+        // ---- FILE UPLOAD ----
+        const uploadZone = document.getElementById("upload-zone");
+        const fileInput = document.getElementById("file-input");
+        const uploadNameField = document.getElementById("upload-name-field");
+        const uploadNameInput = document.getElementById("upload-name");
+        const btnAddUpload = document.getElementById("btn-add-upload");
+
+        let pendingUploadFiles = []; // FileList staging area
+
+        fileInput.addEventListener("change", () => {
+          handleFileSelection(fileInput.files);
+        });
+
+        uploadZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          uploadZone.classList.add("drag-active");
+        });
+
+        uploadZone.addEventListener("dragleave", () =>
+          uploadZone.classList.remove("drag-active")
+        );
+
+        uploadZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          uploadZone.classList.remove("drag-active");
+          handleFileSelection(e.dataTransfer.files);
+        });
+
+        function handleFileSelection(files) {
+          if (!files || files.length === 0) return;
+          const valid = Array.from(files).filter((f) =>
+            /\.(pdf|jpe?g|png|gif|webp)$/i.test(f.name)
+          );
+          if (valid.length === 0) {
+            showNotif("No supported files found (PDF, JPG, PNG, GIF, WEBP).");
+            return;
+          }
+
+          pendingUploadFiles = valid;
+
+          const hasImages = valid.some((f) => f.type.startsWith("image/"));
+          const allPdfs = valid.every((f) => f.type === "application/pdf");
+
+          if (hasImages && !allPdfs) {
+            // Need a name for image uploads
+            uploadNameField.style.display = "flex";
+            uploadNameInput.value =
+              valid.length === 1 ? valid[0].name.replace(/\.[^.]+$/, "") : "";
+          } else {
+            uploadNameField.style.display = "none";
+          }
+
+          btnAddUpload.style.display = "inline-block";
+          btnAddUpload.textContent = `Add ${valid.length} file${
+            valid.length > 1 ? "s" : ""
+          }`;
+        }
+
+        btnAddUpload.addEventListener("click", async () => {
+          if (pendingUploadFiles.length === 0) return;
+
+          for (const file of pendingUploadFiles) {
+            const isPdf = file.type === "application/pdf";
+            const isImg = file.type.startsWith("image/");
+
+            if (isPdf) {
+              const arrayBuffer = await file.arrayBuffer();
+              const name = file.name.replace(/\.pdf$/i, "");
+              addItem({
+                type: "uploaded-pdf",
+                name,
+                data: arrayBuffer,
+                thumb: null,
+              });
+              showNotif(`Added: ${name}`);
+            } else if (isImg) {
+              const customName = uploadNameInput.value.trim();
+              if (
+                !customName &&
+                pendingUploadFiles.some((f) => f.type.startsWith("image/"))
+              ) {
+                showNotif("Enter a name for image uploads.");
+                return;
+              }
+              const dataUrl = await readFileAsDataURL(file);
+              const name =
+                pendingUploadFiles.length === 1
+                  ? customName || file.name.replace(/\.[^.]+$/, "")
+                  : `${customName} (${file.name})`;
+              addItem({ type: "photo", name, data: dataUrl, thumb: dataUrl });
+              showNotif(`Added: ${name}`);
+            }
+          }
+
+          // Reset
+          pendingUploadFiles = [];
+          fileInput.value = "";
+          uploadNameField.style.display = "none";
+          uploadNameInput.value = "";
+          btnAddUpload.style.display = "none";
+          btnAddUpload.textContent = "Add to Bundle";
+        });
+
+        function readFileAsDataURL(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+
         // ---- GOOGLE DOCS ----
         function extractDocId(url) {
           const m = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
@@ -881,7 +1089,7 @@
             img.src = item.thumb;
             thumb.appendChild(img);
           } else {
-            thumb.textContent = "DOC";
+            thumb.textContent = item.type === "uploaded-pdf" ? "PDF" : "DOC";
             thumb.style.color = "var(--accent)";
             thumb.style.fontSize = "0.6rem";
             thumb.style.letterSpacing = "0.12em";
@@ -904,7 +1112,11 @@
           const typeLabel = document.createElement("div");
           typeLabel.className = "item-type";
           typeLabel.textContent =
-            item.type === "photo" ? "Photo capture" : "Google Document";
+            item.type === "photo"
+              ? "Photo capture"
+              : item.type === "uploaded-pdf"
+              ? "Uploaded PDF"
+              : "Google Document";
 
           info.appendChild(nameWrap);
           info.appendChild(typeLabel);
@@ -1046,12 +1258,8 @@
               doc.text(truncated, 90, y);
               doc.setTextColor(122, 112, 96);
               doc.setFontSize(9);
-              doc.text(
-                item.type === "photo" ? "Photo" : "Document",
-                W - 54,
-                y,
-                { align: "right" }
-              );
+              const typeLabel = item.type === "photo" ? "Photo" : "Document";
+              doc.text(typeLabel, W - 54, y, { align: "right" });
               doc.setFontSize(11);
             });
 
@@ -1071,6 +1279,7 @@
               if (item.type === "photo") {
                 await addPhotoPage(doc, item, i + 1, W, H, name);
               } else {
+                // both 'gdoc' and 'uploaded-pdf' use the same PDF page renderer
                 await addGdocPages(doc, item, i + 1, W, H, name);
               }
             }
@@ -1176,7 +1385,11 @@
                 doc.setFontSize(8);
                 doc.setTextColor(122, 112, 96);
                 doc.text(
-                  `${String(num).padStart(2, "0")}  /  GOOGLE DOCUMENT`,
+                  `${String(num).padStart(2, "0")}  /  ${
+                    item.type === "uploaded-pdf"
+                      ? "UPLOADED PDF"
+                      : "GOOGLE DOCUMENT"
+                  }`,
                   margin,
                   22
                 );
