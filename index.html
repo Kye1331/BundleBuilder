@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bundle Builder</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Code+Pro:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d0d0d;
+        --surface: #141414;
+        --surface2: #1c1c1c;
+        --border: #2a2a2a;
+        --accent: #c8a96e;
+        --accent-dim: #8a7048;
+        --text: #e8e0d0;
+        --text-dim: #7a7060;
+        --red: #c85a4a;
+        --green: #5a9c6e;
+        --radius: 2px;
+        --mono: "Source Code Pro", monospace;
+        --serif: "Playfair Display", Georgia, serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* --- HEADER --- */
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 2rem 3rem;
+        display: flex;
+        align-items: baseline;
+        gap: 1.5rem;
+      }
+
+      header h1 {
+        font-family: var(--serif);
+        font-size: 2.4rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        color: var(--accent);
+      }
+
+      header span {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      /* --- LAYOUT --- */
+      main {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      aside {
+        border-right: 1px solid var(--border);
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        overflow-y: auto;
+      }
+
+      .panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* --- SECTION LABELS --- */
+      .section-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 0.75rem;
+      }
+
+      /* --- INPUTS --- */
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .field label {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      input[type="text"],
+      input[type="url"] {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        padding: 0.6rem 0.8rem;
+        border-radius: var(--radius);
+        outline: none;
+        transition: border-color 0.15s;
+        width: 100%;
+      }
+
+      input[type="text"]:focus,
+      input[type="url"]:focus {
+        border-color: var(--accent);
+      }
+
+      /* --- BUTTONS --- */
+      button {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: none;
+        border-radius: var(--radius);
+        transition: all 0.15s;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #0d0d0d;
+        padding: 0.7rem 1.2rem;
+        font-weight: 500;
+      }
+
+      .btn-primary:hover {
+        background: #d4b87a;
+      }
+      .btn-primary:active {
+        transform: scale(0.98);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+        padding: 0.5rem 0.9rem;
+      }
+
+      .btn-ghost:hover {
+        border-color: var(--accent-dim);
+        color: var(--accent);
+      }
+
+      .btn-danger {
+        background: transparent;
+        color: var(--red);
+        border: 1px solid transparent;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.65rem;
+      }
+
+      .btn-danger:hover {
+        border-color: var(--red);
+      }
+
+      /* --- WEBCAM SECTION --- */
+      .webcam-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      #video-wrapper {
+        position: relative;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        aspect-ratio: 4/3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #video-wrapper video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+      }
+
+      #video-wrapper video.active {
+        display: block;
+      }
+
+      .video-placeholder {
+        text-align: center;
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        line-height: 1.8;
+      }
+
+      .webcam-controls {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .webcam-controls button {
+        flex: 1;
+      }
+
+      /* --- GOOGLE DOC SECTION --- */
+      .gdoc-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+      }
+
+      .gdoc-row .field {
+        flex: 1;
+      }
+
+      /* --- QUEUE (right panel) --- */
+      .panel-header {
+        padding: 1.5rem 2rem 1rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .panel-header h2 {
+        font-family: var(--serif);
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .queue-count {
+        font-size: 0.68rem;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+      }
+
+      .queue-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .queue-empty {
+        color: var(--text-dim);
+        font-size: 0.8rem;
+        text-align: center;
+        margin-top: 3rem;
+        line-height: 2;
+      }
+
+      .queue-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.8rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        animation: slideIn 0.2s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .item-thumb {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius);
+        object-fit: cover;
+        border: 1px solid var(--border);
+        flex-shrink: 0;
+        background: var(--surface2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        letter-spacing: 0.05em;
+      }
+
+      .item-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: var(--radius);
+      }
+
+      .item-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .item-name {
+        font-size: 0.8rem;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 0.2rem;
+      }
+
+      .item-name input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        padding: 0.1rem 0;
+        width: 100%;
+        outline: none;
+      }
+
+      .item-name input:focus {
+        border-bottom-color: var(--accent);
+      }
+
+      .item-type {
+        font-size: 0.6rem;
+        color: var(--text-dim);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .item-handle {
+        color: var(--text-dim);
+        cursor: grab;
+        font-size: 0.9rem;
+        padding: 0 0.2rem;
+        user-select: none;
+      }
+
+      .item-handle:active {
+        cursor: grabbing;
+      }
+
+      /* --- FOOTER / GENERATE --- */
+      .panel-footer {
+        padding: 1.25rem 2rem;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .panel-footer .btn-primary {
+        padding: 0.75rem 2rem;
+        font-size: 0.78rem;
+      }
+
+      #status-msg {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        flex: 1;
+      }
+
+      #status-msg.success {
+        color: var(--green);
+      }
+      #status-msg.error {
+        color: var(--red);
+      }
+
+      /* --- DIVIDER --- */
+      .divider {
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* --- PROGRESS --- */
+      #progress-bar-wrap {
+        display: none;
+        height: 2px;
+        background: var(--surface2);
+        border-radius: 1px;
+        overflow: hidden;
+        margin-top: 0.4rem;
+      }
+
+      #progress-bar-wrap.active {
+        display: block;
+      }
+
+      #progress-bar {
+        height: 100%;
+        background: var(--accent);
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      /* --- DRAG OVER HIGHLIGHT --- */
+      .queue-item.drag-over {
+        border-color: var(--accent);
+        background: #1e1b14;
+      }
+
+      /* Loading overlay */
+      #loading-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      #loading-overlay.active {
+        display: flex;
+      }
+
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        font-size: 0.8rem;
+        color: var(--accent);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      /* --- CAPTURE FLASH --- */
+      .flash {
+        position: absolute;
+        inset: 0;
+        background: white;
+        opacity: 0;
+        pointer-events: none;
+        animation: flash 0.3s ease;
+      }
+
+      @keyframes flash {
+        0% {
+          opacity: 0.9;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      canvas {
+        display: none;
+      }
+
+      /* --- SCROLLBAR --- */
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--surface);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
+
+      /* --- NOTIFICATION --- */
+      #notif {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--surface2);
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        padding: 0.7rem 1.2rem;
+        border-radius: var(--radius);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.2s ease;
+        pointer-events: none;
+        z-index: 200;
+      }
+
+      #notif.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Bundle Builder</h1>
+      <span>Assignment PDF Bundler</span>
+    </header>
+
+    <main>
+      <!-- LEFT SIDEBAR -->
+      <aside>
+        <!-- Student Name -->
+        <div>
+          <div class="section-label">Student</div>
+          <div class="field">
+            <label for="student-name">Your name</label>
+            <input
+              type="text"
+              id="student-name"
+              placeholder="e.g. Jane Smith"
+              autocomplete="name"
+            />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Webcam capture -->
+        <div>
+          <div class="section-label">Webcam Capture</div>
+          <div class="webcam-container">
+            <div id="video-wrapper">
+              <video id="webcam" autoplay playsinline></video>
+              <div class="video-placeholder" id="cam-placeholder">
+                Camera off<br />
+                <span style="font-size: 0.65rem"
+                  >Click "Start Camera" to begin</span
+                >
+              </div>
+            </div>
+
+            <div class="webcam-controls">
+              <button class="btn-ghost" id="btn-cam-toggle">
+                Start Camera
+              </button>
+              <button class="btn-primary" id="btn-capture" disabled>
+                Capture
+              </button>
+            </div>
+
+            <div class="field" id="photo-name-field" style="display: none">
+              <label for="photo-name">Assignment name (required)</label>
+              <input
+                type="text"
+                id="photo-name"
+                placeholder="e.g. Chapter 5 Worksheet"
+              />
+            </div>
+
+            <canvas id="capture-canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Google Docs -->
+        <div>
+          <div class="section-label">Google Document</div>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem">
+            <div class="field">
+              <label for="gdoc-url"
+                >Public Google Docs URL (share setting to anyone with the link)
+              </label>
+              <input
+                type="url"
+                id="gdoc-url"
+                placeholder="https://docs.google.com/document/d/..."
+              />
+            </div>
+            <div class="field">
+              <label for="gdoc-name"
+                >Custom name
+                <span style="color: var(--text-dim)"
+                  >(optional, defaults to doc title)</span
+                ></label
+              >
+              <input
+                type="text"
+                id="gdoc-name"
+                placeholder="Leave blank to use document title"
+              />
+            </div>
+            <button
+              class="btn-primary"
+              id="btn-add-gdoc"
+              style="align-self: flex-start; padding: 0.6rem 1.2rem"
+            >
+              Add Document
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT PANEL: QUEUE -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Bundle Queue</h2>
+          <span class="queue-count" id="queue-count">0 items</span>
+        </div>
+
+        <div class="queue-list" id="queue-list">
+          <div class="queue-empty" id="queue-empty">
+            No assignments added yet.<br />
+            Capture a photo or add a Google Doc<br />to get started.
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn-primary" id="btn-generate">
+            Generate PDF Bundle
+          </button>
+          <span id="status-msg"></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Building bundle...</div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notif" id="notif"></div>
+
+    <script>
+      (() => {
+        // ---- STATE ----
+        let items = []; // { id, type:'photo'|'gdoc', name, data, thumb }
+        let stream = null;
+        let cameraOn = false;
+        let dragSrcIdx = null;
+
+        // ---- ELEMENTS ----
+        const video = document.getElementById("webcam");
+        const camPlaceholder = document.getElementById("cam-placeholder");
+        const btnCamToggle = document.getElementById("btn-cam-toggle");
+        const btnCapture = document.getElementById("btn-capture");
+        const photoNameField = document.getElementById("photo-name-field");
+        const photoNameInput = document.getElementById("photo-name");
+        const captureCanvas = document.getElementById("capture-canvas");
+        const gdocUrl = document.getElementById("gdoc-url");
+        const gdocName = document.getElementById("gdoc-name");
+        const btnAddGdoc = document.getElementById("btn-add-gdoc");
+        const queueList = document.getElementById("queue-list");
+        const queueEmpty = document.getElementById("queue-empty");
+        const queueCount = document.getElementById("queue-count");
+        const btnGenerate = document.getElementById("btn-generate");
+        const statusMsg = document.getElementById("status-msg");
+        const loadingOverlay = document.getElementById("loading-overlay");
+        const loadingText = document.getElementById("loading-text");
+        const studentName = document.getElementById("student-name");
+        const notif = document.getElementById("notif");
+
+        // ---- UTILS ----
+        function uid() {
+          return Math.random().toString(36).slice(2, 9);
+        }
+
+        function showNotif(msg, duration = 2500) {
+          notif.textContent = msg;
+          notif.classList.add("show");
+          setTimeout(() => notif.classList.remove("show"), duration);
+        }
+
+        function setStatus(msg, type = "") {
+          statusMsg.textContent = msg;
+          statusMsg.className = type;
+        }
+
+        function updateQueueUI() {
+          queueEmpty.style.display = items.length === 0 ? "block" : "none";
+          queueCount.textContent = `${items.length} item${
+            items.length !== 1 ? "s" : ""
+          }`;
+        }
+
+        // ---- WEBCAM ----
+        btnCamToggle.addEventListener("click", async () => {
+          if (!cameraOn) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" },
+                audio: false,
+              });
+              video.srcObject = stream;
+              video.classList.add("active");
+              camPlaceholder.style.display = "none";
+              btnCamToggle.textContent = "Stop Camera";
+              btnCapture.disabled = false;
+              photoNameField.style.display = "flex";
+              cameraOn = true;
+            } catch (e) {
+              showNotif("Camera access denied or unavailable.");
+            }
+          } else {
+            stopCamera();
+          }
+        });
+
+        function stopCamera() {
+          if (stream) {
+            stream.getTracks().forEach((t) => t.stop());
+            stream = null;
+          }
+          video.srcObject = null;
+          video.classList.remove("active");
+          camPlaceholder.style.display = "flex";
+          btnCamToggle.textContent = "Start Camera";
+          btnCapture.disabled = true;
+          photoNameField.style.display = "none";
+          cameraOn = false;
+        }
+
+        btnCapture.addEventListener("click", () => {
+          const name = photoNameInput.value.trim();
+          if (!name) {
+            showNotif("Enter an assignment name before capturing.");
+            return;
+          }
+
+          const flash = document.createElement("div");
+          flash.className = "flash";
+          document.getElementById("video-wrapper").appendChild(flash);
+          setTimeout(() => flash.remove(), 400);
+
+          captureCanvas.width = video.videoWidth || 640;
+          captureCanvas.height = video.videoHeight || 480;
+          const ctx = captureCanvas.getContext("2d");
+          ctx.drawImage(video, 0, 0);
+          const dataUrl = captureCanvas.toDataURL("image/jpeg", 0.92);
+
+          addItem({ type: "photo", name, data: dataUrl, thumb: dataUrl });
+          photoNameInput.value = "";
+          showNotif(`Captured: ${name}`);
+        });
+
+        // ---- GOOGLE DOCS ----
+        function extractDocId(url) {
+          const m = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+          return m ? m[1] : null;
+        }
+
+        btnAddGdoc.addEventListener("click", async () => {
+          const url = gdocUrl.value.trim();
+          if (!url) {
+            showNotif("Paste a Google Docs URL first.");
+            return;
+          }
+          const docId = extractDocId(url);
+          if (!docId) {
+            showNotif("Could not find a document ID in that URL.");
+            return;
+          }
+
+          const customName = gdocName.value.trim();
+
+          btnAddGdoc.disabled = true;
+          btnAddGdoc.textContent = "Loading...";
+          setStatus("Fetching document...", "");
+
+          try {
+            // Use Google Docs export as plain text to get the title
+            const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+            const pdfExportUrl = `https://docs.google.com/document/d/${docId}/export?format=pdf`;
+
+            let docTitle = customName;
+
+            if (!docTitle) {
+              // Try to fetch the text version to extract title (first line)
+              try {
+                const resp = await fetch(exportUrl);
+                if (resp.ok) {
+                  const text = await resp.text();
+                  const firstLine = text
+                    .split("\n")
+                    .find((l) => l.trim().length > 0);
+                  if (firstLine) docTitle = firstLine.trim().slice(0, 80);
+                }
+              } catch (_) {}
+              if (!docTitle) docTitle = `Google Doc (${docId.slice(0, 8)})`;
+            }
+
+            // Fetch the actual PDF export
+            const pdfResp = await fetch(pdfExportUrl);
+            if (!pdfResp.ok)
+              throw new Error(
+                "Could not export. Make sure the doc is publicly shared (Anyone with the link can view)."
+              );
+
+            const pdfBlob = await pdfResp.blob();
+            const arrayBuffer = await pdfBlob.arrayBuffer();
+
+            addItem({
+              type: "gdoc",
+              name: docTitle,
+              data: arrayBuffer,
+              thumb: null,
+            });
+            gdocUrl.value = "";
+            gdocName.value = "";
+            showNotif(`Added: ${docTitle}`);
+            setStatus("");
+          } catch (e) {
+            setStatus(e.message || "Failed to fetch document.", "error");
+          } finally {
+            btnAddGdoc.disabled = false;
+            btnAddGdoc.textContent = "Add Document";
+          }
+        });
+
+        // ---- QUEUE MANAGEMENT ----
+        function addItem(item) {
+          item.id = uid();
+          items.push(item);
+          renderQueueItem(item);
+          updateQueueUI();
+        }
+
+        function removeItem(id) {
+          items = items.filter((i) => i.id !== id);
+          const el = document.querySelector(`[data-id="${id}"]`);
+          if (el) el.remove();
+          updateQueueUI();
+        }
+
+        function renderQueueItem(item) {
+          const row = document.createElement("div");
+          row.className = "queue-item";
+          row.dataset.id = item.id;
+          row.draggable = true;
+
+          // Thumb
+          const thumb = document.createElement("div");
+          thumb.className = "item-thumb";
+          if (item.type === "photo" && item.thumb) {
+            const img = document.createElement("img");
+            img.src = item.thumb;
+            thumb.appendChild(img);
+          } else {
+            thumb.textContent = "DOC";
+            thumb.style.color = "var(--accent)";
+            thumb.style.fontSize = "0.6rem";
+            thumb.style.letterSpacing = "0.12em";
+          }
+
+          // Info
+          const info = document.createElement("div");
+          info.className = "item-info";
+
+          const nameWrap = document.createElement("div");
+          nameWrap.className = "item-name";
+          const nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.value = item.name;
+          nameInput.addEventListener("input", () => {
+            item.name = nameInput.value;
+          });
+          nameWrap.appendChild(nameInput);
+
+          const typeLabel = document.createElement("div");
+          typeLabel.className = "item-type";
+          typeLabel.textContent =
+            item.type === "photo" ? "Photo capture" : "Google Document";
+
+          info.appendChild(nameWrap);
+          info.appendChild(typeLabel);
+
+          // Handle
+          const handle = document.createElement("span");
+          handle.className = "item-handle";
+          handle.title = "Drag to reorder";
+          handle.textContent = ":::";
+
+          // Delete
+          const del = document.createElement("button");
+          del.className = "btn-danger";
+          del.textContent = "Remove";
+          del.addEventListener("click", () => removeItem(item.id));
+
+          row.appendChild(handle);
+          row.appendChild(thumb);
+          row.appendChild(info);
+          row.appendChild(del);
+
+          // Drag reorder
+          row.addEventListener("dragstart", (e) => {
+            dragSrcIdx = items.findIndex((i) => i.id === item.id);
+            e.dataTransfer.effectAllowed = "move";
+          });
+
+          row.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            document
+              .querySelectorAll(".queue-item")
+              .forEach((el) => el.classList.remove("drag-over"));
+            row.classList.add("drag-over");
+          });
+
+          row.addEventListener("dragleave", () =>
+            row.classList.remove("drag-over")
+          );
+
+          row.addEventListener("drop", (e) => {
+            e.preventDefault();
+            row.classList.remove("drag-over");
+            const destIdx = items.findIndex((i) => i.id === item.id);
+            if (dragSrcIdx === null || dragSrcIdx === destIdx) return;
+            const [moved] = items.splice(dragSrcIdx, 1);
+            items.splice(destIdx, 0, moved);
+            dragSrcIdx = null;
+            rerenderQueue();
+          });
+
+          queueList.insertBefore(row, queueEmpty);
+        }
+
+        function rerenderQueue() {
+          queueList
+            .querySelectorAll(".queue-item")
+            .forEach((el) => el.remove());
+          items.forEach(renderQueueItem);
+          updateQueueUI();
+        }
+
+        // ---- PDF GENERATION ----
+        btnGenerate.addEventListener("click", generateBundle);
+
+        async function generateBundle() {
+          if (items.length === 0) {
+            showNotif("Add at least one assignment first.");
+            return;
+          }
+
+          const name = studentName.value.trim() || "Student";
+
+          setStatus("");
+          loadingOverlay.classList.add("active");
+
+          try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: "pt", format: "letter" });
+            const W = doc.internal.pageSize.getWidth();
+            const H = doc.internal.pageSize.getHeight();
+
+            // ---- COVER PAGE ----
+            loadingText.textContent = "Building cover page...";
+            await tick();
+
+            doc.setFillColor(13, 13, 13);
+            doc.rect(0, 0, W, H, "F");
+
+            // Gold rule top
+            doc.setDrawColor(200, 169, 110);
+            doc.setLineWidth(1.5);
+            doc.line(54, 72, W - 54, 72);
+
+            // Title
+            doc.setFont("times", "bold");
+            doc.setFontSize(42);
+            doc.setTextColor(200, 169, 110);
+            doc.text("Assignment Bundle", W / 2, 160, { align: "center" });
+
+            // Student name
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(16);
+            doc.setTextColor(232, 224, 208);
+            doc.text(name, W / 2, 210, { align: "center" });
+
+            // Date
+            const dateStr = new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+            doc.setFontSize(10);
+            doc.setTextColor(122, 112, 96);
+            doc.text(dateStr, W / 2, 235, { align: "center" });
+
+            // TOC
+            doc.setDrawColor(42, 42, 42);
+            doc.setLineWidth(0.5);
+            doc.line(54, 280, W - 54, 280);
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(122, 112, 96);
+            doc.text("CONTENTS", 54, 310);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(232, 224, 208);
+            items.forEach((item, idx) => {
+              const y = 336 + idx * 28;
+              doc.setTextColor(200, 169, 110);
+              doc.text(`${String(idx + 1).padStart(2, "0")}`, 54, y);
+              doc.setTextColor(232, 224, 208);
+              const truncated =
+                item.name.length > 60
+                  ? item.name.slice(0, 57) + "..."
+                  : item.name;
+              doc.text(truncated, 90, y);
+              doc.setTextColor(122, 112, 96);
+              doc.setFontSize(9);
+              doc.text(
+                item.type === "photo" ? "Photo" : "Document",
+                W - 54,
+                y,
+                { align: "right" }
+              );
+              doc.setFontSize(11);
+            });
+
+            // Gold rule bottom
+            doc.setDrawColor(200, 169, 110);
+            doc.setLineWidth(1.5);
+            doc.line(54, H - 72, W - 54, H - 72);
+
+            // ---- ITEMS ----
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              loadingText.textContent = `Processing ${i + 1} of ${
+                items.length
+              }...`;
+              await tick();
+
+              if (item.type === "photo") {
+                await addPhotoPage(doc, item, i + 1, W, H, name);
+              } else {
+                await addGdocPages(doc, item, i + 1, W, H, name);
+              }
+            }
+
+            // ---- SAVE ----
+            loadingText.textContent = "Saving PDF...";
+            await tick();
+
+            const safeName = name
+              .replace(/[^a-zA-Z0-9 _-]/g, "")
+              .replace(/\s+/g, "_");
+            doc.save(`${safeName}_Bundle.pdf`);
+
+            setStatus("Bundle downloaded successfully.", "success");
+            showNotif("PDF bundle saved.");
+          } catch (e) {
+            console.error(e);
+            setStatus(
+              "Error: " + (e.message || "Failed to generate PDF."),
+              "error"
+            );
+          } finally {
+            loadingOverlay.classList.remove("active");
+            loadingText.textContent = "Building bundle...";
+          }
+        }
+
+        async function addPhotoPage(doc, item, num, W, H, studentName) {
+          doc.addPage();
+          const margin = 54;
+
+          // Header bar
+          doc.setFillColor(20, 20, 20);
+          doc.rect(0, 0, W, 50, "F");
+          doc.setDrawColor(200, 169, 110);
+          doc.setLineWidth(1);
+          doc.line(0, 50, W, 50);
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(122, 112, 96);
+          doc.text(
+            `${String(num).padStart(2, "0")}  /  PHOTO CAPTURE`,
+            margin,
+            22
+          );
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.setTextColor(232, 224, 208);
+          const truncated =
+            item.name.length > 55 ? item.name.slice(0, 52) + "..." : item.name;
+          doc.text(truncated, margin, 39);
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(122, 112, 96);
+          doc.text(studentName, W - margin, 39, { align: "right" });
+
+          // Image
+          const imgY = 70;
+          const maxImgH = H - imgY - margin;
+          const maxImgW = W - margin * 2;
+
+          await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const aspectRatio = img.width / img.height;
+              let iW = maxImgW;
+              let iH = iW / aspectRatio;
+              if (iH > maxImgH) {
+                iH = maxImgH;
+                iW = iH * aspectRatio;
+              }
+              const iX = margin + (maxImgW - iW) / 2;
+              doc.addImage(img, "JPEG", iX, imgY, iW, iH, undefined, "FAST");
+              resolve();
+            };
+            img.src = item.data;
+          });
+        }
+
+        async function addGdocPages(doc, item, num, W, H, studentName) {
+          // Embed the exported PDF pages
+          try {
+            const { PDFDocument } = await getPdfLib();
+            const srcPdf = await PDFDocument.load(item.data);
+            const pageCount = srcPdf.getPageCount();
+
+            for (let p = 0; p < pageCount; p++) {
+              doc.addPage();
+              const margin = 54;
+
+              // Only show header on first page of this item
+              if (p === 0) {
+                doc.setFillColor(20, 20, 20);
+                doc.rect(0, 0, W, 50, "F");
+                doc.setDrawColor(200, 169, 110);
+                doc.setLineWidth(1);
+                doc.line(0, 50, W, 50);
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(8);
+                doc.setTextColor(122, 112, 96);
+                doc.text(
+                  `${String(num).padStart(2, "0")}  /  GOOGLE DOCUMENT`,
+                  margin,
+                  22
+                );
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.setTextColor(232, 224, 208);
+                const truncated =
+                  item.name.length > 55
+                    ? item.name.slice(0, 52) + "..."
+                    : item.name;
+                doc.text(truncated, margin, 39);
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(122, 112, 96);
+                doc.text(studentName, W - margin, 39, { align: "right" });
+              }
+
+              // Render the PDF page as an image and embed it
+              const pageImg = await renderPdfPageToImage(item.data, p);
+              if (pageImg) {
+                const topOffset = p === 0 ? 58 : 10;
+                const imgH = H - topOffset - 20;
+                const imgW = W - margin * 2;
+                doc.addImage(
+                  pageImg,
+                  "JPEG",
+                  margin,
+                  topOffset,
+                  imgW,
+                  imgH,
+                  undefined,
+                  "FAST"
+                );
+              }
+            }
+          } catch (e) {
+            // Fallback: embed single image placeholder page
+            doc.addPage();
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            doc.setTextColor(200, 169, 110);
+            doc.text(`[${item.name}]`, 54, 120);
+            doc.setTextColor(122, 112, 96);
+            doc.setFontSize(10);
+            doc.text(
+              "Document could not be rendered. Ensure it is publicly shared.",
+              54,
+              145
+            );
+          }
+        }
+
+        // Render a PDF page to a JPEG data URL using a hidden canvas
+        async function renderPdfPageToImage(arrayBuffer, pageIdx) {
+          try {
+            const pdfjsLib = await getPdfjsLib();
+            const copy = arrayBuffer.slice(0);
+            const pdf = await pdfjsLib.getDocument({ data: copy }).promise;
+            const page = await pdf.getPage(pageIdx + 1);
+            const viewport = page.getViewport({ scale: 1.8 });
+            const canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext("2d");
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            return canvas.toDataURL("image/jpeg", 0.85);
+          } catch (e) {
+            console.warn("PDF render error:", e);
+            return null;
+          }
+        }
+
+        // Lazy load pdf-lib
+        let _pdfLib = null;
+        async function getPdfLib() {
+          if (_pdfLib) return _pdfLib;
+          await loadScript(
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
+          );
+          _pdfLib = window.PDFLib;
+          return _pdfLib;
+        }
+
+        // Lazy load pdfjs
+        let _pdfjsLib = null;
+        async function getPdfjsLib() {
+          if (_pdfjsLib) return _pdfjsLib;
+          await loadScript(
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+          );
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          _pdfjsLib = window.pdfjsLib;
+          return _pdfjsLib;
+        }
+
+        function loadScript(src) {
+          return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) {
+              resolve();
+              return;
+            }
+            const s = document.createElement("script");
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        }
+
+        function tick() {
+          return new Promise((r) => setTimeout(r, 0));
+        }
+
+        // ---- INIT ----
+        updateQueueUI();
+      })();
+    </script>
+  </body>
+</html>
